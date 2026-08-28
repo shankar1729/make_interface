@@ -23,6 +23,7 @@ class Surfaces:
         theta_max=np.radians(135),
         *,
         TOL = 1E-5,
+        vector1: np.ndarray | None = None,
     ) -> None:
         """
         Find surface unit cells of `bulk` with miller index `surface_index`,
@@ -31,6 +32,9 @@ class Surfaces:
         
         If `surface_index` is (0, 0, 0), this results in all surface supercells
         with in-plane lengths less than `Lmax`, regardless of surface direction.
+        
+        If `vector1` is specified, constrain first vector of the surface unit cell
+        to it. This direction must be orthogonal to `surface_index` if also given.
         """ 
 
         # Get lattice vectors and compute their lengths:
@@ -51,15 +55,15 @@ class Surfaces:
         
         # Select pairs with v1 shorter than v2 and angle in range:
         theta_min = 0.5 * np.pi - TOL  # 90 degrees (with round-off margin)
-        sel1, sel2 = np.where(
-            (vector_lengths[:, None] <= vector_lengths[None, :] + TOL)  # |v1| <= |v2|
-            & (theta >= theta_min)
-            & (theta <= theta_max)
-        )
+        v1_shorter = (vector_lengths[:, None] <= vector_lengths[None, :] + TOL)
+        if vector1 is not None:
+            # Override by forcing first vector to be the required value:
+            v1_shorter = np.linalg.norm((vectors - vector1) @ RT, axis=1)[:, None] < TOL
+        sel1, sel2 = np.where(v1_shorter & (theta >= theta_min) & (theta <= theta_max))
         if not len(sel1):
             raise KeyError(
                 f"No surface unit cells with lattice vector lengths <= {Lmax}"
-                "and a reasonable angle"
+                " and a reasonable angle"
             )
         
         # Compute and reduce normals:
