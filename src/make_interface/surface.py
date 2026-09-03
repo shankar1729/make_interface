@@ -226,6 +226,7 @@ class Surfaces:
 
         # Rotate best slab into standard orientation
         rotate(best_slab, best_slab.cell[0], (1, 0, 0), best_slab.cell[1], (0, 1, 0))
+        assert best_slab.cell[2, 2] > 0
         return best_slab
 
 
@@ -286,6 +287,7 @@ def make_vacuum_orthogonal(slab: Atoms) -> None:
     n_hat = n_vec / np.linalg.norm(n_vec)
     RT[2] = n_hat * (n_hat @ RT[2])  # project third direction to normal
     slab.set_cell(RT)
+
 
 def wrap_cut_plane(slab: Atoms, z_cut: float) -> None:
     """Wrap positions relative to fractional cut plane in third direction."""

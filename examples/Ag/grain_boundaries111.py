@@ -16,7 +16,6 @@ print(surfaces)
 # Make a normal-reflected version of each:
 bulk_reflected = ase.io.read("../bulk_structures/Ag.xsf")  # read chiral partner
 surfaces_reflected = deepcopy(surfaces)
-surfaces_reflected.sup[:, :, 2] *= -1  # reflect normal
 surfaces_reflected.bulk = bulk_reflected
 print(surfaces_reflected)
 
@@ -27,6 +26,8 @@ print(interfaces)
 # Make and write all the twin boundary structures:
 calc = EMT()
 for i_interface in range(len(interfaces.strain)):
-    slab, _, _ = interfaces.make_slab(i_interface, thickness, thickness, calc)
+    slab, _, _ = interfaces.make_slab(
+        i_interface, thickness, thickness, calc, reflect2=True
+    )
     ase.io.write(f"grain_boundary_{i_interface}.xsf", slab)
 
