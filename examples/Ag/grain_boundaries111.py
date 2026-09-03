@@ -27,7 +27,7 @@ print(interfaces)
 calc = EMT()
 for i_interface in range(len(interfaces.strain)):
     slab, _, _ = interfaces.make_slab(
-        i_interface, thickness, thickness, calc, reflect2=True
+        i_interface, thickness, thickness, calc, reflect2=True, optimize_spacing=True
     )
     ase.io.write(f"grain_boundary_{i_interface}.xsf", slab)
 

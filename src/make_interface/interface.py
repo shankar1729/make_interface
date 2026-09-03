@@ -81,6 +81,7 @@ class Interfaces:
         calculator: Calculator,
         n_initial_offsets: int = 10,
         *,
+        optimize_spacing: bool = False,
         TOL = 1E-6,
         reflect2: bool = False,
     ) -> tuple[Atoms, Atoms, Atoms]:
@@ -88,6 +89,8 @@ class Interfaces:
         `i_interface` from search results, with specified `minimum_thickness1`
         and `minimum_thickness2` for the two materials in Angstroms, using
         the specified `calculator` to find the lowest-energy stackings.
+        Optionally, the spacing between the slabs can also be adjusted based
+        on energies from the `calculator` is `optimize_spacing` is True.
         TOL specifies the tolerance in detecting equivalent layers.
         Use reflect2 to reflect the second slab along its normal, 
         which could be used for constructing twin boundaries.
@@ -138,16 +141,23 @@ class Interfaces:
         slab2.calc = calculator
         energy_ref = slab1.get_potential_energy() + slab2.get_potential_energy()
 
-        # Optimize relative offsets between slabs
+        # Optimize relative offsets and spacing between slabs
         def get_interface(offsets: np.ndarray) -> Atoms:
             dx21 = offsets[:2]  # fractional offset between slab2 and slab1
-            dx_cell = dx21 + offsets[2:]  # fractional offset of next slab1
+            dx_cell = dx21 + offsets[2:4]  # fractional offset of next slab1
             dx_cell -= np.floor(0.5 + dx_cell)  # wrap to [-0.5, 0.5)
             dr21 = dx21 @ RT[:2, :2]  # Cartesian offset of slab2 from slab1
             dr_cell = dx_cell @ RT[:2, :2]  # Cartesian offset to shear cell
+            # Update cell to accommodate spacing:
+            spacings = np.zeros(2)
+            if optimize_spacing:
+                spacings = offsets[4:]
+                RT[2, 2] = c1 + c2 + spacings.sum()
+                slab1.set_cell(RT, scale_atoms=False)
+                slab2.set_cell(RT, scale_atoms=False)
             # Shift slab2
             slab2_shifted = slab2.copy()
-            slab2_shifted.translate((*dr21, 0.0))
+            slab2_shifted.translate((*dr21, spacings[0]))
             # Shear interface
             RT[2, :2] = dr_cell
             interface = slab1 + slab2_shifted
@@ -163,8 +173,9 @@ class Interfaces:
         print("\nOptimizing stacking of slabs:")
         best_energy = np.inf
         best_offsets = None
+        n_dof = 6 if optimize_spacing else 4
         for i_initial_offset in range(n_initial_offsets):
-            res = minimize(get_energy, np.random.rand(4), method='BFGS', tol=1E-4)
+            res = minimize(get_energy, np.random.rand(n_dof), method='BFGS', tol=1E-4)
             energy = res.fun
             print(f"  Offset: {i_initial_offset}  surface binding: {energy:.3} eV/A^2")
             if energy < best_energy:
